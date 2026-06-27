@@ -30,3 +30,4 @@ build/
 
 # pytest
 .pytest_cache/
+pyer_debug.log
