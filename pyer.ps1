@@ -1,1 +1,1 @@
-python pyer_gui.py 
+python pyer_gui.py $args
