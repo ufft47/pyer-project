@@ -1,1 +1,1 @@
-python pyer_gui.py $args
+python "$PSscriptRoot\pyer_gui.py" $args

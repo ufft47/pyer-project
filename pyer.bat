@@ -1,2 +1,2 @@
 @echo off
-python pyer_gui.py %*
+python "%~dp0pyer_gui.py" %*
