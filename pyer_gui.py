@@ -5,8 +5,8 @@ import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from pyer import pyer_config as cfg
-from pyer import pyer_logic as logic
+import pyer_config as cfg
+import pyer_logic as logic
 
 # --- UI 主體與變數宣告最前端配置 ---
 root = tk.Tk()

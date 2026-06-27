@@ -4,7 +4,7 @@ import shutil
 import logging
 
 # 初始化 Logger 機制
-TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(TOOL_DIR, "pyer_debug.log")
 logging.basicConfig(
     filename=log_path,

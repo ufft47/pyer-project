@@ -2,7 +2,7 @@ import os
 import sys
 import subprocess
 import logging
-from pyer import pyer_config as cfg
+import pyer_config as cfg
 
 def write_action_and_exit(root_window, commands_list):
     """寫入臨時指令腳本，強制關閉 UI 並中斷 Python 程序"""
