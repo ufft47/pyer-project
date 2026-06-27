@@ -102,8 +102,10 @@ def get_installed_packages() -> list[str]:
         return []
     try:
         logging.info("開始背景執行 pip list 讀取套件...")
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo = None
+        if hasattr(subprocess, 'STARTUPINFO'):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         result = subprocess.run(
             [cfg.VENV_PIP_PATH, "list", "--format=columns"],
@@ -123,8 +125,10 @@ def get_installed_packages() -> list[str]:
 
 def create_venv_exec(name: str, use_uv: bool) -> None:
     """建立虛擬環境。成功不回傳，失敗 raise。"""
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo = None
+    if hasattr(subprocess, 'STARTUPINFO'):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     clean_name = name.strip()
 
     if use_uv and cfg.VENV_UV_PATH:

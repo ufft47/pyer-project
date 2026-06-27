@@ -23,8 +23,8 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short --cov=src --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["tests/*"]
+source = ["."]
+omit = ["tests/*", ".venv/*", "htmlcov/*"]
 
 [project.scripts]
-pyer = "pyer.pyer_gui:main"
+pyer = "pyer_gui:main"
