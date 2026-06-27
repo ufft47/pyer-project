@@ -160,6 +160,8 @@ def delete_venv(folder_name: str) -> None:
 
 
 def _get_pkg_tool_and_args() -> tuple[str | None, list[str]]:
+# TODO: need manual test on Windows - pip/uv integration
+
     """回傳 (可執行檔路徑, [基本參數])，自動偵測 uv/venv。
 
     保護規則：uv 管理的環境只准用 uv，傳統環境用 pip。
@@ -177,6 +179,8 @@ def _get_pkg_tool_and_args() -> tuple[str | None, list[str]]:
 
 
 def install_packages(packages: list[str]) -> list[dict]:
+# TODO: need manual test on Windows - pip/uv integration
+
     """安裝套件，自動選用 uv 或 pip。
 
     回傳 [{name, status, message}, ...] 每筆套件的安裝結果。
@@ -219,6 +223,8 @@ def install_packages(packages: list[str]) -> list[dict]:
 
 
 def uninstall_package(package_name: str) -> dict:
+# TODO: need manual test on Windows - pip/uv integration
+
     """移除單一套件，自動選用 uv 或 pip。
 
     回傳 {status, message}。

@@ -139,7 +139,8 @@ def do_delete():
             messagebox.showerror("錯誤", f"刪除失敗: {str(e)}")
 
 
-def do_install():
+def do_install():    # TODO: need manual test on Windows - pip/uv install
+
     """安裝選中的套件。"""
     pkgs = [pkg for pkg, var in checked_packages.items() if var.get()]
     custom = entry_custom_pkg.get().strip()
@@ -170,7 +171,8 @@ def do_install():
         messagebox.showerror("錯誤", str(e))
 
 
-def do_uninstall():
+def do_uninstall():    # TODO: need manual test on Windows - pip/uv uninstall
+
     """移除選中套件。"""
     sel = listbox_installed.curselection()
     if not sel:
