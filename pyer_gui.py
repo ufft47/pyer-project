@@ -79,7 +79,7 @@ def _exit_with_commands(cmds):
     """寫入指令檔後關閉 GUI。"""
     backend.write_commands_file(cmds)
     root.destroy()
-    sys.exit(0)
+    os._exit(0)
 
 
 def do_create():
