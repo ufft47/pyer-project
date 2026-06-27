@@ -139,8 +139,64 @@ def do_delete():
             messagebox.showerror("錯誤", f"刪除失敗: {str(e)}")
 
 
-def dummy_pip_action():
-    messagebox.showinfo("提示", "這只是介面測試，目前暫無實際 Pip 功能。")
+def do_install():
+    """安裝選中的套件。"""
+    pkgs = [pkg for pkg, var in checked_packages.items() if var.get()]
+    custom = entry_custom_pkg.get().strip()
+    if custom:
+        pkgs.extend([p.strip() for p in custom.split(",") if p.strip()])
+    if not pkgs:
+        messagebox.showwarning("提示", "請至少選擇或輸入一個套件")
+        return
+
+    label_status.config(text=f"正在安裝 {len(pkgs)} 個套件...", fg="#2196F3")
+    root.update()
+    try:
+        results = backend.install_packages(pkgs)
+        success = [r for r in results if r["status"] == "success"]
+        errors = [r for r in results if r["status"] == "error"]
+        msg_parts = []
+        if success:
+            msg_parts.append(f"成功安裝 {len(success)} 個")
+        if errors:
+            msg_parts.append(f"失敗 {len(errors)} 個")
+            for e in errors:
+                msg_parts.append(f"  {e['name']}: {e['message']}")
+        label_status.config(text="安裝完成" if not errors else "部分失敗", fg="#4CAF50" if not errors else "#F44336")
+        messagebox.showinfo("安裝結果", "\n".join(msg_parts))
+        refresh_package_list()
+    except Exception as e:
+        label_status.config(text="安裝失敗", fg="#F44336")
+        messagebox.showerror("錯誤", str(e))
+
+
+def do_uninstall():
+    """移除選中套件。"""
+    sel = listbox_installed.curselection()
+    if not sel:
+        messagebox.showwarning("提示", "請先選擇一個套件")
+        return
+    line = listbox_installed.get(sel[0])
+    pkg_name = line.split()[0]  # "requests 2.31.0" -> "requests"
+    if "讀取失敗" in line:
+        return
+
+    if not messagebox.askyesno("確認移除", f"確定要移除套件 [{pkg_name}] 嗎？"):
+        return
+
+    label_status.config(text=f"正在移除 {pkg_name}...", fg="#2196F3")
+    root.update()
+    try:
+        result = backend.uninstall_package(pkg_name)
+        if result["status"] == "success":
+            label_status.config(text=f"{pkg_name} 已移除", fg="#4CAF50")
+        else:
+            label_status.config(text=f"{pkg_name} 移除失敗", fg="#F44336")
+        messagebox.showinfo("結果", result["message"])
+        refresh_package_list()
+    except Exception as e:
+        label_status.config(text="移除失敗", fg="#F44336")
+        messagebox.showerror("錯誤", str(e))
 
 
 # ==================== 視覺佈局（完全沿用原版） ====================
@@ -241,8 +297,8 @@ tk.Label(frame_pip_left, text="🔍 手動輸入套件名稱:", font=("Arial", 9
 entry_custom_pkg = tk.Entry(frame_pip_left, font=("Arial", 11), state=PIP_STATE)
 entry_custom_pkg.pack(fill="x", pady=(0, 10))
 tk.Button(
-    frame_pip_left, text="🚀 執行安裝", command=dummy_pip_action,
-    bg="#E0E0E0", fg="gray", font=("Arial", 10, "bold"), state=PIP_STATE
+    frame_pip_left, text="🚀 執行安裝", command=do_install,
+    bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), state=PIP_STATE
 ).pack(fill="x", pady=5)
 
 frame_pip_right = tk.LabelFrame(tab_pip, text=" 📋 已安裝套件清單 ", padx=10, pady=10)
@@ -256,7 +312,7 @@ listbox_installed = tk.Listbox(
 listbox_installed.pack(fill="both", expand=True)
 scrollbar.config(command=listbox_installed.yview)
 tk.Button(
-    frame_pip_right, text="🗑️ 移除選中套件", command=dummy_pip_action,
+    frame_pip_right, text="🗑️ 移除選中套件", command=do_uninstall,
     bg="#E0E0E0", fg="gray", font=("Arial", 10, "bold"), state=PIP_STATE
 ).pack(fill="x", pady=(5, 0))
 

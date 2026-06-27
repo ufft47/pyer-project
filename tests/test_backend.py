@@ -686,3 +686,129 @@ def test_delete_nonexistent_raises(tmp_path):
     finally:
 
         os.chdir(old_cwd)
+
+# ==================== _get_pkg_tool_and_args / install / uninstall ====================
+
+
+def test_get_pkg_tool_no_venv():
+    old_path = cfg.CURRENT_VENV_PATH
+    cfg.CURRENT_VENV_PATH = None
+    try:
+        from pyer_backend import _get_pkg_tool_and_args
+        assert _get_pkg_tool_and_args() == (None, [])
+    finally:
+        cfg.CURRENT_VENV_PATH = old_path
+
+
+def test_get_pkg_tool_traditional(monkeypatch):
+    old_path, old_pip, old_uv = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    cfg.VENV_UV_PATH = None
+    monkeypatch.setattr("os.path.exists", lambda p: str(p).endswith("pip.exe"))
+    try:
+        from pyer_backend import _get_pkg_tool_and_args
+        tool, args = _get_pkg_tool_and_args()
+        assert tool == "/tmp/fake/Scripts/pip.exe"
+        assert args == []
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH = old_path, old_pip, old_uv
+
+
+def test_get_pkg_tool_uv_environment(monkeypatch):
+    old_path, old_pip, old_uv, old_is_uv = (
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT)
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_UV_PATH = "/usr/bin/uv"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    cfg.IS_UV_ENVIRONMENT = True
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    try:
+        from pyer_backend import _get_pkg_tool_and_args
+        tool, args = _get_pkg_tool_and_args()
+        assert tool == "/usr/bin/uv"
+        assert args == ["pip"]
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT = (
+            old_path, old_pip, old_uv, old_is_uv)
+
+
+def test_install_packages_no_venv():
+    old_path = cfg.CURRENT_VENV_PATH
+    cfg.CURRENT_VENV_PATH = None
+    try:
+        from pyer_backend import install_packages
+        import pytest
+        with pytest.raises(RuntimeError, match="\u6c92\u6709\u555f\u7528\u4e2d\u7684\u865b\u64ec\u74b0\u5883"):
+            install_packages(["requests"])
+    finally:
+        cfg.CURRENT_VENV_PATH = old_path
+
+
+def test_install_packages_success(monkeypatch):
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    calls = []
+    def fake_run(*a, **kw):
+        calls.append(a[0])
+        return type("R", (), {"returncode": 0, "stdout": "OK", "stderr": ""})()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        from pyer_backend import install_packages
+        results = install_packages(["requests", "numpy"])
+        assert len(results) == 2
+        assert results[0]["status"] == "success"
+        assert results[1]["status"] == "success"
+        assert len(calls) == 2
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+def test_install_packages_partial_fail(monkeypatch):
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    import subprocess
+    call_n = [0]
+    def fake_run(*a, **kw):
+        call_n[0] += 1
+        if call_n[0] == 2:
+            raise subprocess.CalledProcessError(1, "pip", stderr="not found")
+        return type("R", (), {"returncode": 0, "stdout": "OK", "stderr": ""})()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        from pyer_backend import install_packages
+        results = install_packages(["requests", "badpkg"])
+        assert results[0]["status"] == "success"
+        assert results[1]["status"] == "error"
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+def test_uninstall_package_no_venv():
+    old_path = cfg.CURRENT_VENV_PATH
+    cfg.CURRENT_VENV_PATH = None
+    try:
+        from pyer_backend import uninstall_package
+        import pytest
+        with pytest.raises(RuntimeError):
+            uninstall_package("requests")
+    finally:
+        cfg.CURRENT_VENV_PATH = old_path
+
+
+def test_uninstall_package_success(monkeypatch):
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    monkeypatch.setattr("subprocess.run", lambda *a, **kw: type("R", (), {"returncode": 0, "stdout": "Removed", "stderr": ""})())
+    try:
+        from pyer_backend import uninstall_package
+        result = uninstall_package("requests")
+        assert result["status"] == "success"
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
