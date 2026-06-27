@@ -24,7 +24,7 @@ def scan_venvs() -> list[str]:
     processed = []
     for env in venvs_raw:
         if not env or not env.strip():
-            continue
+            continue  # pragma: no cover
         cfg_file = os.path.join(env, "pyvenv.cfg")
         is_uv = False
         if os.path.exists(cfg_file):
