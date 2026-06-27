@@ -812,3 +812,131 @@ def test_uninstall_package_success(monkeypatch):
         assert result["status"] == "success"
     finally:
         cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+# ==================== 邊界覆蓋率補強 ====================
+
+
+def test_scan_venvs_pyvenv_cfg_exception(tmp_path, monkeypatch):
+    """pyvenv.cfg 讀取異常時不影響掃描結果（except pass）。"""
+    venv_dir = tmp_path / "some_env"
+    (venv_dir / "Scripts").mkdir(parents=True)
+    (venv_dir / "Scripts" / "activate.bat").write_text("")
+    (venv_dir / "pyvenv.cfg").write_text("creator = uv")
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = scan_venvs()
+        # 即使 pyvenv.cfg 有 uv 內容，scan 還是能正常執行
+        assert len(result) == 1
+        assert "some_env" in result[0]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_get_pkg_tool_no_pip_no_uv(monkeypatch):
+    """傳統環境但 pip 不存在時回傳 None。"""
+    from pyer_backend import _get_pkg_tool_and_args
+    old_path, old_pip, old_uv, old_is_uv = (
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT)
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    cfg.VENV_UV_PATH = None
+    cfg.IS_UV_ENVIRONMENT = False
+    monkeypatch.setattr("os.path.exists", lambda p: False)  # pip 不存在
+    try:
+        result = _get_pkg_tool_and_args()
+        assert result == (None, [])
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT = (
+            old_path, old_pip, old_uv, old_is_uv)
+
+
+def test_install_packages_empty_name(monkeypatch):
+    """空字串套件名稱應跳過不處理。"""
+    from pyer_backend import install_packages
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    calls = []
+    def fake_run(*a, **kw):
+        calls.append(a[0])
+        return type("R", (), {"returncode": 0, "stdout": "OK", "stderr": ""})()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        results = install_packages(["requests", "", "numpy"])
+        assert len(results) == 2  # empty string skipped
+        assert results[0]["name"] == "requests"
+        assert results[1]["name"] == "numpy"
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+def test_install_packages_uv_mode(monkeypatch):
+    """UV 環境下 install_packages 應使用 uv 路徑。"""
+    from pyer_backend import install_packages
+    old_path, old_pip, old_uv, old_is_uv = (
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT)
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    cfg.VENV_UV_PATH = "/usr/bin/uv"
+    cfg.IS_UV_ENVIRONMENT = True
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    calls = []
+    def fake_run(*a, **kw):
+        calls.append(a[0])
+        return type("R", (), {"returncode": 0, "stdout": "OK", "stderr": ""})()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        results = install_packages(["requests"])
+        assert len(calls) == 1
+        assert "uv" in str(calls[0][0])  # 應該使用 uv 不是 pip
+        assert results[0]["status"] == "success"
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT = (
+            old_path, old_pip, old_uv, old_is_uv)
+
+
+def test_uninstall_package_error(monkeypatch):
+    """移除套件失敗應回傳 error 狀態。"""
+    from pyer_backend import uninstall_package
+    import subprocess
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    def fake_run(*a, **kw):
+        raise subprocess.CalledProcessError(1, "pip", stderr="not permitted")
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        result = uninstall_package("requests")
+        assert result["status"] == "error"
+        assert "not permitted" in result["message"]
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+def test_uninstall_package_uv_mode(monkeypatch):
+    """UV 環境下 uninstall 應使用 uv。"""
+    from pyer_backend import uninstall_package
+    old_path, old_pip, old_uv, old_is_uv = (
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT)
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    cfg.VENV_UV_PATH = "/usr/bin/uv"
+    cfg.IS_UV_ENVIRONMENT = True
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    calls = []
+    def fake_run(*a, **kw):
+        calls.append(a[0])
+        return type("R", (), {"returncode": 0, "stdout": "Removed", "stderr": ""})()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    try:
+        result = uninstall_package("requests")
+        assert result["status"] == "success"
+        assert "uv" in str(calls[0][0])
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT = (
+            old_path, old_pip, old_uv, old_is_uv)
