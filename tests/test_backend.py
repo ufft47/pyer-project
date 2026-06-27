@@ -940,3 +940,59 @@ def test_uninstall_package_uv_mode(monkeypatch):
     finally:
         cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH, cfg.VENV_UV_PATH, cfg.IS_UV_ENVIRONMENT = (
             old_path, old_pip, old_uv, old_is_uv)
+
+
+# ==================== 拼到 100% ====================
+
+
+def test_get_installed_packages_success(monkeypatch):
+    """get_installed_packages 成功路徑。"""
+    from pyer_backend import get_installed_packages
+    old_path, old_pip = cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH
+    cfg.CURRENT_VENV_PATH = "/tmp/fake"
+    cfg.VENV_PIP_PATH = "/tmp/fake/Scripts/pip.exe"
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    monkeypatch.setattr("subprocess.run", lambda *a, **kw: type("R",(),{
+        "returncode": 0,
+        "stdout": "Package    Version\n---------- -------\npip        24.0\nsetuptools 69.0\n",
+        "stderr": ""
+    })())
+    try:
+        result = get_installed_packages()
+        assert len(result) == 2
+        assert "pip" in result[0]
+    finally:
+        cfg.CURRENT_VENV_PATH, cfg.VENV_PIP_PATH = old_path, old_pip
+
+
+def test_scan_venvs_skip_empty_name_with_mock(tmp_path, monkeypatch):
+    """os.listdir 回傳空白名稱時應跳過。"""
+    monkeypatch.setattr("os.listdir", lambda _: ["", "  ", "real_env"])
+    (tmp_path / "real_env" / "Scripts").mkdir(parents=True)
+    (tmp_path / "real_env" / "Scripts" / "activate.bat").write_text("")
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = scan_venvs()
+        assert len(result) == 1
+        assert "real_env" in result[0]
+    finally:
+        os.chdir(old_cwd)
+
+def test_scan_venvs_pyvenv_cfg_is_directory(tmp_path, monkeypatch):
+    """pyvenv.cfg 是目錄而非檔案時應跳過（except pass）。"""
+    venv_dir = tmp_path / "broken_env"
+    (venv_dir / "Scripts").mkdir(parents=True)
+    (venv_dir / "Scripts" / "activate.bat").write_text("")
+    # 建立一個同名目錄而非檔案，讓 open() 失敗
+    (venv_dir / "pyvenv.cfg").mkdir()
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = scan_venvs()
+        assert len(result) == 1
+        # 因為 pyvenv.cfg 無法讀取，應標記為傳統 VENV
+        assert "傳統 VENV" in result[0]
+    finally:
+        os.chdir(old_cwd)
