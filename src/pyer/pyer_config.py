@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import logging
+import platform
 
 # 初始化 Logger 機制
 TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -101,3 +102,80 @@ if "powershell" in str(SHELL_TYPE).lower():
     TMP_FILE_PATH = os.path.join(TOOL_DIR, "pyer_next.ps1")
 else:
     TMP_FILE_PATH = os.path.join(TOOL_DIR, "pyer_next.bat")
+
+
+# ==================== Python 版本資訊查詢 ====================
+
+def get_python_version_info():
+    """Return a dict with current Python version and environment info.
+
+    Returns:
+        dict with keys:
+            full_version (str): sys.version string
+            version_info (tuple): (major, minor, micro, releaselevel, serial)
+            implementation (str): Python implementation (e.g. 'CPython')
+            executable (str): path to current Python interpreter
+            is_venv (bool): True if running inside a virtual environment
+            global_python (str): path (or version string) of global/system Python
+    """
+    is_venv = bool(CURRENT_VENV_PATH) or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
+
+    # Find global/system Python path
+    global_python = ""
+    try:
+        base_exec = getattr(sys, "base_exec_prefix", sys.prefix)
+        candidates = []
+        if os.name == "nt":  # Windows
+            candidates = [
+                os.path.join(base_exec, "python.exe"),
+                os.path.join(base_exec, "python3.exe"),
+            ]
+        else:  # Linux/macOS
+            candidates = [
+                os.path.join(base_exec, "bin", "python3"),
+                os.path.join(base_exec, "bin", "python"),
+            ]
+        for path in candidates:
+            if os.path.exists(path):
+                global_python = path
+                break
+        if not global_python:
+            global_python = shutil.which("python3") or shutil.which("python") or sys.executable
+    except Exception:
+        global_python = sys.executable
+
+    return {
+        "full_version": sys.version.strip(),
+        "version_info": (
+            sys.version_info.major,
+            sys.version_info.minor,
+            sys.version_info.micro,
+            sys.version_info.releaselevel,
+            sys.version_info.serial,
+        ),
+        "implementation": platform.python_implementation(),
+        "executable": sys.executable,
+        "is_venv": is_venv,
+        "global_python": global_python,
+    }
+
+
+def format_python_version_summary():
+    """Return a human-readable summary string of the current Python version info.
+
+    Returns:
+        str: e.g. "Python 3.11.0 (CPython) [venv: my_venv]" or
+             "Python 3.11.0 (CPython) [global: /usr/bin/python3]"
+    """
+    info = get_python_version_info()
+    ver = ".".join(str(v) for v in info["version_info"][:3])
+    impl = info["implementation"]
+
+    if info["is_venv"]:
+        location = "venv"
+    else:
+        location = "global"
+
+    return f"Python {ver} ({impl}) [{location}]"

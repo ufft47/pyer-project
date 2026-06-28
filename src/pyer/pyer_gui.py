@@ -206,7 +206,8 @@ if cfg.CURRENT_VENV_NAME:
 else:
     manager_text = "UV (全域優先)" if (True if cfg.VENV_UV_PATH else False) else "傳統 VENV"
 
-status_text = f"終端機核心: {str(cfg.SHELL_TYPE).upper()}  |  管理程式: {manager_text}  |  狀態: " + ("已進入環境" if cfg.CURRENT_VENV_NAME else "處於環境路徑下" if cfg.IS_INSIDE_VENV_DIR else "全域環境")
+python_ver_info = cfg.format_python_version_summary()
+status_text = f"Python: {python_ver_info}  |  終端機核心: {str(cfg.SHELL_TYPE).upper()}  |  管理程式: {manager_text}  |  狀態: " + ("已進入環境" if cfg.CURRENT_VENV_NAME else "處於環境路徑下" if cfg.IS_INSIDE_VENV_DIR else "全域環境")
 label_status.config(text=status_text)
 label_status.pack(pady=5)
 
