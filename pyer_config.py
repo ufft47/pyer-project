@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import logging
+import platform
 
 # 初始化 Logger 機制
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -101,3 +102,84 @@ if "powershell" in str(SHELL_TYPE).lower():
     TMP_FILE_PATH = os.path.join(TOOL_DIR, "pyer_next.ps1")
 else:
     TMP_FILE_PATH = os.path.join(TOOL_DIR, "pyer_next.bat")
+
+
+# ==================== Python 版本資訊查詢 ====================
+
+def get_python_version_info():
+    is_venv = bool(CURRENT_VENV_PATH) or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
+    global_python = ""
+    try:
+        base_exec = getattr(sys, "base_exec_prefix", sys.prefix)
+        candidates = []
+        if os.name == "nt":
+            candidates = [os.path.join(base_exec, "python.exe"), os.path.join(base_exec, "python3.exe")]
+        else:
+            candidates = [os.path.join(base_exec, "bin", "python3"), os.path.join(base_exec, "bin", "python")]
+        for path in candidates:
+            if os.path.exists(path):
+                global_python = path
+                break
+        if not global_python:
+            global_python = shutil.which("python3") or shutil.which("python") or sys.executable
+    except Exception:
+        global_python = sys.executable
+
+    return {
+        "full_version": sys.version.strip(),
+        "version_info": (sys.version_info.major, sys.version_info.minor, sys.version_info.micro, sys.version_info.releaselevel, sys.version_info.serial),
+        "implementation": platform.python_implementation(),
+        "executable": sys.executable,
+        "is_venv": is_venv,
+        "global_python": global_python,
+    }
+
+def format_python_version_summary():
+    info = get_python_version_info()
+    ver = ".".join(str(v) for v in info["version_info"][:3])
+    impl = info["implementation"]
+    location = "venv" if info["is_venv"] else "global"
+    return f"Python {ver} ({impl}) [{location}]"
+
+
+# ==================== 版本資訊 ====================
+PYER_VERSION = "1.20260628.1"
+
+def get_pyer_version_display() -> str:
+    """回傳完整版號，含分支名稱。"""
+    try:
+        import subprocess
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        ).stdout.strip()
+    except:
+        branch = "main"
+    if branch == "main":
+        return f"v{PYER_VERSION}"
+    return f"v{PYER_VERSION} [{branch}]"
+
+
+def build_status_text() -> str:
+    """建立狀態列文字（純函式，無 Tkinter 相依）。"""
+    if CURRENT_VENV_NAME:
+        manager_text = "UV" if IS_UV_ENVIRONMENT else "傳統 VENV"
+    else:
+        manager_text = "UV (全域優先)" if VENV_UV_PATH else "傳統 VENV"
+
+    if CURRENT_VENV_NAME:
+        state = "已進入環境"
+    elif IS_INSIDE_VENV_DIR:
+        state = "處於環境路徑下"
+    else:
+        state = "全域環境"
+
+    return (
+        f"終端機核心: {str(SHELL_TYPE).upper()}"
+        f"  |  管理程式: {manager_text}"
+        f"  |  狀態: {state}"
+        f"  |  {format_python_version_summary()}"
+    )

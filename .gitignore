@@ -31,3 +31,5 @@ build/
 # pytest
 .pytest_cache/
 pyer_debug.log
+.webui_token
+C:\Users\ufft4\AppData\Local\hermes\scripts\pyer_triage.py

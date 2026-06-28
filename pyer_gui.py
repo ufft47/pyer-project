@@ -7,11 +7,12 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 import pyer_config as cfg
+import pyer_config
 import pyer_backend as backend
 
 # ==================== UI 主體 ====================
 root = tk.Tk()
-root.title("Pyer - Python 終極整合助手")
+root.title(f"Pyer - Python 終極整合助手 {pyer_config.get_pyer_version_display()}")
 root.geometry("500x600")
 root.resizable(False, False)
 
@@ -327,21 +328,7 @@ if not cfg.CURRENT_VENV_NAME:
     ).place(relx=0.5, rely=0.5, anchor="center")
 
 # ==================== 底部狀態列 ====================
-if cfg.CURRENT_VENV_NAME:
-    manager_text = "UV" if cfg.IS_UV_ENVIRONMENT else "傳統 VENV"
-else:
-    manager_text = "UV (全域優先)" if (True if cfg.VENV_UV_PATH else False) else "傳統 VENV"
-
-status_text = (
-    f"終端機核心: {str(cfg.SHELL_TYPE).upper()}"
-    f"  |  管理程式: {manager_text}"
-    f"  |  狀態: "
-    + (
-        "已進入環境"
-        if cfg.CURRENT_VENV_NAME
-        else "處於環境路徑下" if cfg.IS_INSIDE_VENV_DIR else "全域環境"
-    )
-)
+status_text = pyer_config.build_status_text()
 label_status.config(text=status_text)
 label_status.pack(pady=5)
 
