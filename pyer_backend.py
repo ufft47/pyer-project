@@ -10,7 +10,7 @@ import pyer_config as cfg
 
 
 def scan_venvs() -> list[str]:
-    """掃描 CWD 下的虛擬環境，回傳名稱清單（含 UV/傳統標記）。"""
+    """掃描 CWD 下的虛擬環境，回傳名稱清單（含管理程式 + Python 版本）。"""
     venvs_raw = []
     try:
         for item in os.listdir("."):
@@ -27,16 +27,22 @@ def scan_venvs() -> list[str]:
             continue  # pragma: no cover
         cfg_file = os.path.join(env, "pyvenv.cfg")
         is_uv = False
+        py_version = ""
         if os.path.exists(cfg_file):
             try:
                 with open(cfg_file, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read().lower()
-                    if "uv" in content or "creator = uv" in content:
-                        is_uv = True
+                    for raw_line in f:
+                        line_lower = raw_line.lower()
+                        if "uv" in line_lower or "creator = uv" in line_lower:
+                            is_uv = True
+                        if raw_line.startswith("version_info"):
+                            py_version = raw_line.split("=", 1)[1].strip()
             except Exception:
                 pass
-        suffix = " (UV)" if is_uv else " (傳統 VENV)"
-        processed.append(f"{env}{suffix}")
+
+        mgr = "UV" if is_uv else "傳統 VENV"
+        ver = f" [Python {py_version}]" if py_version else ""
+        processed.append(f"{env} ({mgr}){ver}")
 
     return processed
 
