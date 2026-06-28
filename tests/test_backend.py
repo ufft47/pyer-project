@@ -996,3 +996,22 @@ def test_scan_venvs_pyvenv_cfg_is_directory(tmp_path, monkeypatch):
         assert "傳統 VENV" in result[0]
     finally:
         os.chdir(old_cwd)
+
+
+def test_scan_venvs_python_version(tmp_path):
+    """pyvenv.cfg 有 version_info 時應顯示 Python 版號。"""
+    venv_dir = tmp_path / "ver_env"
+    (venv_dir / "Scripts").mkdir(parents=True)
+    (venv_dir / "Scripts" / "activate.bat").write_text("")
+    (venv_dir / "pyvenv.cfg").write_text(
+        "home = C:\\Python314\nversion_info = 3.14.6\n"
+    )
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = scan_venvs()
+        assert len(result) == 1
+        assert "3.14.6" in result[0]
+        assert "Python" in result[0]
+    finally:
+        os.chdir(old_cwd)
